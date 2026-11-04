@@ -103,3 +103,6 @@ During this phase, I learned:
 Phase 1 focuses on the topic management backend. The APIs are implemented, and I am working on verifying the unit tests.
 
 The next phase will focus on user registration, login, and authentication using Spring Security and JWT.
+## Status
+
+Completed — all 8 tests passed successfully.
