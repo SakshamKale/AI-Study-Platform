@@ -14,11 +14,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.saksham.Aistudyplatform.Topic;
-import com.saksham.Aistudyplatform.TopicNotFoundException;
-import com.saksham.Aistudyplatform.TopicRepository;
-import com.saksham.Aistudyplatform.TopicService;
 import com.saksham.Aistudyplatform.dto.TopicRequest;
+import com.saksham.Aistudyplatform.entity.Topic;
+import com.saksham.Aistudyplatform.exception.TopicNotFoundException;
+import com.saksham.Aistudyplatform.repository.TopicRepository;
 
 
 @ExtendWith(MockitoExtension.class)

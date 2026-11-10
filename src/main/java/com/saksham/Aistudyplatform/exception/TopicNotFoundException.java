@@ -1,5 +1,5 @@
 
-package com.saksham.Aistudyplatform;
+package com.saksham.Aistudyplatform.exception;
 
 public class TopicNotFoundException extends RuntimeException {
 
