@@ -38,6 +38,7 @@ The authentication system consists of the following components:
 | RegisterRequest | Registration request DTO |
 | LoginRequest | Login request DTO |
 | AuthResponse | Login response containing JWT and user information |
+| UserResponse | Safe registration response containing user ID, name, and email |
 | PasswordEncoder | Hashes and verifies passwords |
 | JwtService | Generates and validates JWTs |
 | SecurityConfig | Configures Spring Security |
@@ -79,6 +80,7 @@ PostgreSQL
 4. PasswordEncoder hashes the password using BCrypt.
 5. An AppUser entity is created.
 6. AppUserRepository saves the user in PostgreSQL.
+7. AuthController returns a `UserResponse` containing only the user ID, name, and email. It does not return the password hash.
 
 **Important:** The original password is never stored in the database.
 
@@ -166,6 +168,7 @@ The implementation includes:
 - Public authentication endpoints using `/api/auth/**`.
 - Authentication required for other endpoints.
 - JwtAuthenticationFilter inserted before UsernamePasswordAuthenticationFilter.
+- JWT Bearer tokens are the configured authentication mechanism; HTTP Basic is not enabled.
 
 ### Why stateless authentication?
 
@@ -304,6 +307,8 @@ Spring Security then rejects requests to protected endpoints.
 
 | Scenario | Expected response |
 |---|---|
+| Register with an email already in use | 409 Conflict |
+| Login with an unknown email or wrong password | 401 Unauthorized |
 | Valid JWT | 200 OK for successful GET |
 | Invalid JWT | 401 Unauthorized |
 | Expired JWT | 401 Unauthorized |
@@ -338,9 +343,21 @@ Required environment variables:
 
 Never commit actual passwords, JWT secrets, or access tokens to GitHub.
 
-## 15. Testing with Postman
+## 15. Verification and tests
 
-The implementation was tested using two different user accounts.
+Earlier project notes recorded manual Postman testing with two user accounts. Re-run the successful registration/login and two-user scenarios after the current security and response changes before treating them as verified for the current code.
+
+Current automated test files:
+
+- `TopicServiceTest` checks owner-scoped topic queries and rejects update/delete when the authenticated user's query returns no topic.
+- `AuthServiceTest` checks password hashing, duplicate registration, successful login, and invalid credentials.
+- `JwtAuthenticationFilterTest` checks valid, invalid, and missing Bearer tokens at the filter level.
+- `GlobalExceptionHandlerTest` checks the 409 and 401 response mappings.
+- `AuthFlowIntegrationTest` exercises registration, login, JWT-protected topic requests, safe registration output, and user A/B topic isolation through the real Spring Security filter chain. Its database work runs inside a test transaction that is rolled back.
+
+The latest full Maven test suite passed: 21 tests, zero failures, zero errors. The Spring context and integration tests connected to the local PostgreSQL database. The focused filter and service unit tests use mocks; the integration test exercises the complete request flow.
+
+The app was also started locally. HTTP checks returned 400 for invalid registration input, 401 for login with an unknown email, and 401 for topic requests with either no token or an invalid token. The integration test verified successful registration/login and cross-user topic access.
 
 ### Test cases
 
@@ -359,11 +376,11 @@ The implementation was tested using two different user accounts.
 | User B deletes User A's topic | 404 Not Found |
 | User A accesses their own topic | 200 OK |
 
-## 16. Phase 2 Outcome
+The integration test covers the successful registration/login and user A/B topic isolation cases. The Postman table remains useful for manual practice.
 
-Phase 2 establishes the authentication and authorization foundation of the AI Study Platform.
+## 16. Current implementation status
 
-The completed implementation provides:
+The code currently contains the following Phase 2 implementation:
 
 - Secure registration and login.
 - Password hashing using BCrypt.
@@ -374,5 +391,7 @@ The completed implementation provides:
 - User-specific topic access.
 - Ownership checks for topic creation, retrieval, updates, and deletion.
 - Handling of invalid and expired JWTs.
+- Safe registration responses that omit the password hash.
+- Specific registration and login error responses.
 
-**Result:** Users can authenticate with JWT and access only their own topic resources through the protected API.
+The current automated suite and local failure-response checks pass. Before marking Phase 2 complete, review and explain the authentication and ownership flow, then create the planned Git commit. The implementation has not been committed as part of this work.

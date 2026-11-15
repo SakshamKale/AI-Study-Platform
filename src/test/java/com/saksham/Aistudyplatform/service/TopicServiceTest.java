@@ -1,159 +1,192 @@
 package com.saksham.Aistudyplatform.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.saksham.Aistudyplatform.dto.TopicRequest;
+import com.saksham.Aistudyplatform.entity.AppUser;
 import com.saksham.Aistudyplatform.entity.Topic;
 import com.saksham.Aistudyplatform.exception.TopicNotFoundException;
+import com.saksham.Aistudyplatform.repository.AppUserRepository;
 import com.saksham.Aistudyplatform.repository.TopicRepository;
-
 
 @ExtendWith(MockitoExtension.class)
 class TopicServiceTest {
 
+    private static final String USER_EMAIL = "student@example.com";
+
     @Mock
     private TopicRepository topicRepository;
+
+    @Mock
+    private AppUserRepository appUserRepository;
 
     @InjectMocks
     private TopicService topicService;
 
-    
+    @BeforeEach
+    void authenticateTestUser() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(USER_EMAIL, null, List.of())
+        );
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
-void getAllTopicsTest() {
-    Topic topic = new Topic();
-   
-    topic.setSubject("Java");
-    topic.setTopic("OOP");
+    void getAllTopicsReturnsOnlyTopicsForAuthenticatedUser() {
+        Topic topic = topic("Java", "OOP");
+        when(topicRepository.findByUserEmail(USER_EMAIL)).thenReturn(List.of(topic));
 
-    when(topicRepository.findAll()).thenReturn(java.util.List.of(topic));
+        var result = topicService.getAllTopics();
 
-    var result = topicService.getAllTopics();
+        assertEquals(1, result.size());
+        assertEquals("Java", result.get(0).getSubject());
+        assertEquals("OOP", result.get(0).getTopic());
+        verify(topicRepository).findByUserEmail(USER_EMAIL);
+    }
 
-    assertEquals(1, result.size());
-    assertEquals("Java", result.get(0).getSubject());
-    assertEquals("OOP", result.get(0).getTopic());
+    @Test
+    void getAllTopicsReturnsMultipleOwnedTopics() {
+        when(topicRepository.findByUserEmail(USER_EMAIL)).thenReturn(List.of(
+                topic("Java", "OOP"),
+                topic("DBMS", "Normalization")
+        ));
 
-    verify(topicRepository).findAll();
-}
-@Test
-void getAllTopicsWithMultipleTopicsTest() {
-    Topic topic1 = new Topic();
-    topic1.setSubject("Java");
-    topic1.setTopic("OOP");
+        var result = topicService.getAllTopics();
 
-    Topic topic2 = new Topic();
-    topic2.setSubject("DBMS");
-    topic2.setTopic("Normalization");
+        assertEquals(2, result.size());
+        assertEquals("Java", result.get(0).getSubject());
+        assertEquals("DBMS", result.get(1).getSubject());
+        verify(topicRepository).findByUserEmail(USER_EMAIL);
+    }
 
-    when(topicRepository.findAll()).thenReturn(java.util.List.of(topic1, topic2));
+    @Test
+    void getTopicByIdFindsTopicForAuthenticatedUser() {
+        when(topicRepository.findByIdAndUserEmail(1L, USER_EMAIL))
+                .thenReturn(Optional.of(topic("Java", "OOP")));
 
-    var result = topicService.getAllTopics();
+        var result = topicService.getTopicById(1L);
 
-    assertEquals(2, result.size());
-    assertEquals("Java", result.get(0).getSubject());
-    assertEquals("DBMS", result.get(1).getSubject());
+        assertNotNull(result);
+        assertEquals("Java", result.getSubject());
+        assertEquals("OOP", result.getTopic());
+        verify(topicRepository).findByIdAndUserEmail(1L, USER_EMAIL);
+    }
 
-    verify(topicRepository).findAll();
-}
-@Test
-void getTopicByIdTest() {
-    Topic topic = new Topic();
-    topic.setSubject("Java");
-    topic.setTopic("OOP");
+    @Test
+    void getTopicByIdThrowsWhenTopicIsNotOwnedOrMissing() {
+        when(topicRepository.findByIdAndUserEmail(99L, USER_EMAIL))
+                .thenReturn(Optional.empty());
 
-    when(topicRepository.findById(1L))
-            .thenReturn(java.util.Optional.of(topic));
+        assertThrows(TopicNotFoundException.class,
+                () -> topicService.getTopicById(99L));
+        verify(topicRepository).findByIdAndUserEmail(99L, USER_EMAIL);
+    }
 
-    var result = topicService.getTopicById(1L);
-
-    assertNotNull(result);
-    assertEquals("Java", result.getSubject());
-    assertEquals("OOP", result.getTopic());
-
-    verify(topicRepository).findById(1L);
-}
-@Test
-void getTopicByIdNotFoundTest() {
-    when(topicRepository.findById(99L))
-            .thenReturn(java.util.Optional.empty());
-
-    assertThrows(
-            TopicNotFoundException.class,
-            () -> topicService.getTopicById(99L)
-    );
-
-    verify(topicRepository).findById(99L);
-}
-@Test
-void createTopicTest() {
-    TopicRequest request = new TopicRequest();
-    request.setSubject("Java");
-    request.setTopic("OOP");
-
-    Topic savedTopic = new Topic();
-    savedTopic.setSubject("Java");
-    savedTopic.setTopic("OOP");
-
-    when(topicRepository.save(any(Topic.class)))
-            .thenReturn(savedTopic);
-
-    var result = topicService.createTopic(request);
-
-    assertNotNull(result);
-    assertEquals("Java", result.getSubject());
-    assertEquals("OOP", result.getTopic());
-
-    verify(topicRepository).save(any(Topic.class));
-}
-@Test
-    void updateTopicTest() {
-        Topic existingTopic = new Topic();
-        existingTopic.setSubject("Java");
-        existingTopic.setTopic("OOP");
-
-        TopicRequest request = new TopicRequest();
-        request.setSubject("Java");
-        request.setTopic("Collections");
-
-        when(topicRepository.findById(1L))
-                .thenReturn(Optional.of(existingTopic));
-
+    @Test
+    void createTopicAssignsAuthenticatedUserAsOwner() {
+        AppUser user = new AppUser("Student", USER_EMAIL, "encoded-password");
+        when(appUserRepository.findByEmail(USER_EMAIL)).thenReturn(Optional.of(user));
         when(topicRepository.save(any(Topic.class)))
-                .thenReturn(existingTopic);
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = topicService.updateTopic(1L, request);
+        var result = topicService.createTopic(topicRequest("Java", "OOP"));
+
+        assertNotNull(result);
+        assertEquals("Java", result.getSubject());
+        assertEquals("OOP", result.getTopic());
+        verify(appUserRepository).findByEmail(USER_EMAIL);
+        ArgumentCaptor<Topic> savedTopic = ArgumentCaptor.forClass(Topic.class);
+        verify(topicRepository).save(savedTopic.capture());
+        assertEquals(user, savedTopic.getValue().getUser());
+    }
+
+    @Test
+    void updateTopicChangesOnlyOwnedTopic() {
+        Topic existingTopic = topic("Java", "OOP");
+        when(topicRepository.findByIdAndUserEmail(1L, USER_EMAIL))
+                .thenReturn(Optional.of(existingTopic));
+        when(topicRepository.save(any(Topic.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = topicService.updateTopic(1L, topicRequest("Java", "Collections"));
 
         assertNotNull(result);
         assertEquals("Java", result.getSubject());
         assertEquals("Collections", result.getTopic());
-
-        verify(topicRepository).findById(1L);
-        verify(topicRepository).save(any(Topic.class));
+        verify(topicRepository).findByIdAndUserEmail(1L, USER_EMAIL);
+        verify(topicRepository).save(existingTopic);
     }
 
-    
     @Test
-void deleteTopicTest() {
-    Topic topic = new Topic();
-    
+    void updateTopicRejectsTopicNotOwnedByAuthenticatedUser() {
+        when(topicRepository.findByIdAndUserEmail(1L, USER_EMAIL))
+                .thenReturn(Optional.empty());
 
-    when(topicRepository.findById(1L)).thenReturn(Optional.of(topic));
+        assertThrows(TopicNotFoundException.class,
+                () -> topicService.updateTopic(1L, topicRequest("Java", "Collections")));
 
-    topicService.deleteTopic(1L);
+        verify(topicRepository).findByIdAndUserEmail(1L, USER_EMAIL);
+        verify(topicRepository, never()).save(any(Topic.class));
+    }
 
-    verify(topicRepository).findById(1L);
-    verify(topicRepository).delete(topic);
-}
+    @Test
+    void deleteTopicDeletesOnlyOwnedTopic() {
+        Topic topic = topic("Java", "OOP");
+        when(topicRepository.findByIdAndUserEmail(1L, USER_EMAIL))
+                .thenReturn(Optional.of(topic));
+
+        topicService.deleteTopic(1L);
+
+        verify(topicRepository).findByIdAndUserEmail(1L, USER_EMAIL);
+        verify(topicRepository).delete(topic);
+    }
+
+    @Test
+    void deleteTopicRejectsTopicNotOwnedByAuthenticatedUser() {
+        when(topicRepository.findByIdAndUserEmail(1L, USER_EMAIL))
+                .thenReturn(Optional.empty());
+
+        assertThrows(TopicNotFoundException.class,
+                () -> topicService.deleteTopic(1L));
+
+        verify(topicRepository).findByIdAndUserEmail(1L, USER_EMAIL);
+        verify(topicRepository, never()).delete(any(Topic.class));
+    }
+
+    private Topic topic(String subject, String name) {
+        Topic topic = new Topic();
+        topic.setSubject(subject);
+        topic.setTopic(name);
+        return topic;
+    }
+
+    private TopicRequest topicRequest(String subject, String name) {
+        TopicRequest request = new TopicRequest();
+        request.setSubject(subject);
+        request.setTopic(name);
+        return request;
+    }
 }

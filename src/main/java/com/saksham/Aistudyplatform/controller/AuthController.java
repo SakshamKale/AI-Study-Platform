@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.saksham.Aistudyplatform.dto.AuthResponse;
 import com.saksham.Aistudyplatform.dto.LoginRequest;
 import com.saksham.Aistudyplatform.dto.RegisterRequest;
-import com.saksham.Aistudyplatform.entity.AppUser;
+import com.saksham.Aistudyplatform.dto.UserResponse;
 import com.saksham.Aistudyplatform.service.AuthService;
 
 import jakarta.validation.Valid;
@@ -28,13 +28,14 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AppUser register(@Valid @RequestBody RegisterRequest request) {
+    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
 
-        return authService.register(
+        var user = authService.register(
                 request.getName(),
                 request.getEmail(),
                 request.getPassword()
         );
+        return new UserResponse(user.getId(), user.getName(), user.getEmail());
     }
     
 @PostMapping("/login")

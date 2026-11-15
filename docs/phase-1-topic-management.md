@@ -65,19 +65,20 @@ The `GlobalExceptionHandler` handles exceptions centrally so that the API can re
 
 ## Testing
 
-I wrote unit tests for `TopicService` using JUnit 5 and Mockito.
+`TopicServiceTest` uses JUnit 5 and Mockito. The current tests set up an authenticated user and mock both repositories because topic operations are scoped to the current owner.
 
 The tests cover:
 
-- Retrieving topics when the list is empty
-- Retrieving multiple topics
-- Finding a topic by ID
-- Handling a topic that does not exist
-- Creating a topic
-- Updating a topic
-- Deleting a topic
+- Listing topics using the authenticated user's email
+- Finding a topic by ID and owner
+- Returning not found for a missing or non-owned topic
+- Assigning the authenticated user as topic owner during creation
+- Updating and deleting owned topics
+- Rejecting update and delete attempts for a topic not owned by the current user
 
 I used Mockito to mock the repository instead of connecting to the actual database during service unit tests.
+
+The latest full test suite passed: 21 tests, with no failures or errors. `TopicServiceTest` contributes nine tests. The earlier note that all eight tests passed referred to an older version of the test file.
 
 To run the tests:
 
@@ -100,9 +101,6 @@ During this phase, I learned:
 
 ## Current status
 
-Phase 1 focuses on the topic management backend. The APIs are implemented, and I am working on verifying the unit tests.
+The topic CRUD implementation is present. The current service tests pass and cover authenticated, owner-scoped behavior. The two-user API flow is also covered by `AuthFlowIntegrationTest` using a rollback-only database transaction.
 
-The next phase will focus on user registration, login, and authentication using Spring Security and JWT.
-## Status
-
-Completed — all 8 tests passed successfully.
+Authentication and user-owned topic access are documented in [PHASE-2-AUTHENTICATION.md](PHASE-2-AUTHENTICATION.md).

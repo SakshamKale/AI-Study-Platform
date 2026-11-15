@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import com.saksham.Aistudyplatform.dto.AuthResponse;
 import com.saksham.Aistudyplatform.entity.AppUser;
+import com.saksham.Aistudyplatform.exception.EmailAlreadyRegisteredException;
+import com.saksham.Aistudyplatform.exception.InvalidCredentialsException;
 import com.saksham.Aistudyplatform.repository.AppUserRepository;
 
 @Service
@@ -30,7 +32,7 @@ public class AuthService {
     public AppUser register(String name, String email, String password) {
 
         if (appUserRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email already registered");
+            throw new EmailAlreadyRegisteredException();
         }
 
         String encodedPassword = passwordEncoder.encode(password);
@@ -46,7 +48,7 @@ public class AuthService {
                 appUserRepository.findByEmail(email);
 
         if (optionalUser.isEmpty()) {
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException();
         }
 
         AppUser user = optionalUser.get();
@@ -57,7 +59,7 @@ public class AuthService {
         );
 
         if (!passwordMatches) {
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentialsException();
         }
 
         String token = jwtService.generateToken(user.getEmail());
